@@ -1,0 +1,55 @@
+services:
+  # --- BACKEND (FastAPI) ---
+  backend:
+    build: 
+      context: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    environment:
+      # Modificamos la URL para que apunte al contenedor de Postgres en vez de SQLite
+      - DATABASE_URL=postgresql://qhse_user:qhse_password@postgres_db:5432/qhse_industrial_db
+    depends_on:
+      - postgres_db # Le dice a Docker que no prenda el backend hasta que la base de datos esté lista
+
+  # --- FRONTEND (React + Vite) ---
+  frontend:
+    image: node:20-slim
+    working_dir: /app
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./qhse-frontend:/app
+    command: sh -c "npm install && npm run dev -- --host"
+
+  # --- BASE DE DATOS (PostgreSQL) ---
+  postgres_db:
+    image: postgres:15-alpine
+    container_name: qhse_postgres
+    restart: always
+    environment:
+      - POSTGRES_USER=qhse_user
+      - POSTGRES_PASSWORD=qhse_password
+      - POSTGRES_DB=qhse_industrial_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Mantiene tus datos guardados aunque apagues Docker
+
+ # --- INTERFAZ GRÁFICA (pgAdmin) ---
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: qhse_pgadmin
+    restart: always
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@qhse.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
+    ports:
+      - "5050:80"  # <-- CAMBIO CLAVE: Tu compu usa el 5050, pero entra al 80 interno del contenedor
+    depends_on:
+      - postgres_db
+
+# Definimos el volumen para que la base de datos sea persistente
+volumes:
+  postgres_data:
